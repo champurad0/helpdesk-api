@@ -52,7 +52,7 @@ class PublicUserAPITests(TestCase):
         """Test an error is returned if password is less than 5 chars"""
         payload = {
             "email": "test@example.com",
-            "password": "password123!",
+            "password": "pas",
             "name": "Test Name",
         }
         res = self.client.post(CREATE_USER_URL, payload)
@@ -60,3 +60,35 @@ class PublicUserAPITests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
         user_exists = get_user_model().objects.filter(email=payload["email"]).exists()
         self.assertFalse(user_exists)
+
+    def test_create_token_for_user(self):
+        """tests generates token for valide credentials"""
+        user_details = {
+            "name": "test name",
+            "email": "test@example.com",
+            "password": "test-user-password",
+        }
+        create_user(**user_details)
+        payload = {
+            "email": user_details["email"],
+            "password": user_details["password"],
+        }
+        res = self.client.post(TOKEN_URL, payload)
+        self.assertIn("token", res.data)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_create_token_bad_credentials(self):
+        """test returns error if credentials are invalid"""
+        create_user(email="test@example.com", password="goodpass")
+        payload = {"email": "", "password": "badpass"}
+        res = self.client.post(TOKEN_URL, payload)
+        self.assertNotIn("token", res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_token_blank_password(self):
+        """test returns error on blank password"""
+        payload = {"email": "test@example.com", "password": ""}
+        res = self.client.post(TOKEN_URL, payload)
+
+        self.assertNotIn("token", res.data)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
